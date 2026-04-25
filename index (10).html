@@ -1,0 +1,383 @@
+```react
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Plus, 
+  Trash2, 
+  Edit3, 
+  X,
+  Lock,
+  Unlock,
+  Maximize2,
+  Image as ImageIcon,
+  Upload,
+  Search,
+  Filter
+} from 'lucide-react';
+
+// أيقونة شعلة النار - تصميم عصري يعبر عن "Spicy"
+const FlameIcon = ({ className }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="1.8"
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M8.5 14.5C8.5 14.5 6 13 6 9C6 7 8 5 9 3C9 3 10 5 10 7C10 8 11 9 12 9C13 9 15 8 15 5C15 5 18 8 18 12C18 16.4183 14.4183 20 10 20C5.58172 20 2 16.4183 2 12C2 10 3 8 3 8" />
+    <path d="M12 15C12 15 11 14 10.5 13C10 12 10 11 10.5 10.5C11 10 12 10.5 13 11.5C14 12.5 14.5 14 14 15.5C13.5 17 12 17.5 10.5 17" />
+  </svg>
+);
+
+const App = () => {
+  const STORAGE_KEY = 'spicys_final_database_v3';
+
+  const [designers, setDesigners] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('LIBRARY');
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [formData, setFormData] = useState({ name: '', images: [] });
+  
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [passkey, setPasskey] = useState('');
+  
+  const [clickCount, setClickCount] = useState(0);
+  const lastClickTime = useRef(0);
+
+  const [selectedDesigner, setSelectedDesigner] = useState(null);
+  const [fullViewImage, setFullViewImage] = useState(null);
+
+  useEffect(() => {
+    const savedData = localStorage.getItem(STORAGE_KEY);
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setDesigners(parsed);
+        } else {
+          loadDefaultData();
+        }
+      } catch (e) {
+        console.error("خطأ في قراءة البيانات المحفوظة", e);
+        loadDefaultData();
+      }
+    } else {
+      loadDefaultData();
+    }
+  }, []);
+
+  const loadDefaultData = () => {
+    const defaults = [
+      { 
+        id: 1, 
+        name: 'ADRIAN THORNE', 
+        images: ['https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=800'] 
+      }
+    ];
+    setDesigners(defaults);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
+  };
+
+  useEffect(() => {
+    if (designers.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(designers));
+    }
+  }, [designers]);
+
+  const handleLogoClick = () => {
+    const now = Date.now();
+    if (now - lastClickTime.current < 500) {
+      const newCount = clickCount + 1;
+      setClickCount(newCount);
+      if (newCount === 2) {
+        setShowAdminLogin(true);
+        setClickCount(0);
+      }
+    } else {
+      setClickCount(0);
+    }
+    lastClickTime.current = now;
+  };
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({
+          ...prev,
+          images: [...prev.images, reader.result]
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!isAdmin) return;
+    const formattedName = formData.name.toUpperCase().trim();
+    
+    let updatedList;
+    if (editingId) {
+      updatedList = designers.map(d => 
+        d.id === editingId ? { ...formData, name: formattedName, id: editingId } : d
+      );
+    } else {
+      const newDesigner = { ...formData, id: Date.now(), name: formattedName };
+      updatedList = [...designers, newDesigner];
+    }
+    
+    setDesigners(updatedList);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
+    
+    setIsAdding(false);
+    setFormData({ name: '', images: [] });
+    setEditingId(null);
+  };
+
+  const filteredDesigners = designers.filter(designer => 
+    designer.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
+  );
+
+  return (
+    <div className="min-h-screen bg-[#050000] text-white font-sans selection:bg-red-900 overflow-x-hidden relative">
+      
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-[-20%] left-[-10%] w-[70%] h-[70%] bg-red-600/20 rounded-full blur-[150px] animate-pulse"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-red-700/15 rounded-full blur-[130px] animate-float"></div>
+      </div>
+
+      <nav className="sticky top-0 z-[60] bg-black/90 backdrop-blur-md border-b border-white/5 px-6 py-4 flex justify-between items-center">
+        <div className="flex items-center gap-3 cursor-pointer select-none group" onClick={handleLogoClick}>
+          <div className="relative">
+            <FlameIcon className={`w-6 h-6 ${isAdmin ? 'text-green-500' : 'text-red-600'} drop-shadow-[0_0_12px_rgba(220,38,38,0.8)] transition-all duration-500 group-hover:scale-110 group-hover:rotate-6`} />
+            <div className={`absolute inset-0 bg-red-600 blur-xl opacity-10 group-hover:opacity-40 transition-opacity`}></div>
+          </div>
+          <h1 className="text-sm font-black tracking-tighter uppercase italic">
+            SPICY<span className="text-red-700">CREATIONS</span>
+          </h1>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          {isAdmin && (
+            <button 
+              onClick={() => { setIsAdding(true); setEditingId(null); setFormData({name:'', images:[]}) }}
+              className="bg-red-950/30 hover:bg-red-900/50 border border-red-900/40 px-3 py-1.5 rounded-sm text-[9px] font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(153,27,27,0.2)]"
+            >
+              + NEW DESIGNER
+            </button>
+          )}
+        </div>
+      </nav>
+
+      <main className="max-w-screen-xl mx-auto pb-20 relative z-10">
+        <header className="px-6 py-10 md:py-16 border-b border-white/5">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+            <div className="relative">
+              <h2 className="text-5xl md:text-7xl font-black leading-[0.9] tracking-tighter uppercase mb-4 italic">
+                THE<br />
+                <span className="text-red-600 drop-shadow-[0_0_25px_rgba(220,38,38,0.3)]">EXHIBITION</span>
+              </h2>
+              <p className="max-w-sm text-zinc-400 text-[10px] font-bold leading-relaxed uppercase tracking-wider opacity-70">
+                At Spicy digital elegance meets creativity giving birth to covers that are read by the eye before the first word
+              </p>
+            </div>
+            
+            <div className="relative w-full md:w-80 group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-red-600 transition-colors" size={16} />
+              <input 
+                type="text"
+                placeholder="SEARCH BY NAME..."
+                className="w-full bg-white/5 border border-white/10 py-4 pl-12 pr-4 text-[10px] font-black uppercase tracking-widest outline-none focus:border-red-800/50 focus:bg-white/[0.08] transition-all"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <div className="divide-y divide-white/5">
+          {filteredDesigners.length > 0 ? (
+            filteredDesigners.map((designer) => (
+              <section key={designer.id} className="p-6 md:p-8 hover:bg-white/[0.02] transition-colors group">
+                <div className="flex items-baseline justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-xl md:text-2xl font-black tracking-tighter text-white uppercase italic">{designer.name}</h3>
+                    <span className="text-[9px] font-bold text-red-700 tracking-widest opacity-80 uppercase">{designer.images.length} UNITS</span>
+                  </div>
+                  {isAdmin && (
+                    <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => { setEditingId(designer.id); setFormData(designer); setIsAdding(true); }} className="text-zinc-600 hover:text-white"><Edit3 size={14}/></button>
+                      <button onClick={() => {
+                        const confirmDelete = window.confirm(`DELETE ${designer.name} PERMANENTLY?`);
+                        if(confirmDelete) setDesigners(designers.filter(d => d.id !== designer.id));
+                      }} className="text-zinc-600 hover:text-red-600"><Trash2 size={14}/></button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                  <button 
+                    onClick={() => setSelectedDesigner(designer)}
+                    className="shrink-0 w-36 md:w-52 aspect-[3/4] border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-2 hover:border-red-800/40 hover:bg-red-950/10 transition-all text-zinc-700 hover:text-red-500"
+                  >
+                    <Maximize2 size={24} />
+                    <span className="text-[8px] font-black uppercase tracking-[0.2em]">VIEW ARCHIVE</span>
+                  </button>
+
+                  {designer.images.map((img, idx) => (
+                    <div 
+                      key={idx} 
+                      onClick={() => setFullViewImage(img)}
+                      className="shrink-0 w-36 md:w-52 aspect-[3/4] bg-zinc-950 relative group/img overflow-hidden border border-white/5 cursor-zoom-in"
+                    >
+                      <img src={img} className="w-full h-full object-cover grayscale group-hover/img:grayscale-0 transition-all duration-700" alt="Work" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-70 pointer-events-none"></div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))
+          ) : (
+            <div className="py-20 text-center">
+              <p className="text-zinc-700 text-[10px] font-black uppercase tracking-[0.3em]">No results found for "{searchQuery}"</p>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {selectedDesigner && (
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-300">
+          <nav className="p-6 border-b border-white/5 flex justify-between items-center bg-black/50 backdrop-blur-xl sticky top-0 z-10">
+            <div>
+              <p className="text-[8px] font-black text-red-600 tracking-[0.3em] mb-1 uppercase">Archives</p>
+              <h2 className="text-xl font-black tracking-tighter uppercase italic">{selectedDesigner.name}</h2>
+            </div>
+            <button onClick={() => setSelectedDesigner(null)} className="p-3 bg-white/5 rounded-full hover:bg-red-800/20 transition-colors">
+              <X size={20} />
+            </button>
+          </nav>
+          
+          <div className="flex-1 overflow-y-auto p-6 no-scrollbar relative">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 relative z-10">
+              {selectedDesigner.images.map((img, idx) => (
+                <div key={idx} onClick={() => setFullViewImage(img)} className="aspect-[3/4] bg-zinc-900 border border-white/5 overflow-hidden group cursor-zoom-in relative">
+                  <img src={img} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Work" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fullViewImage && (
+        <div className="fixed inset-0 z-[210] bg-black/95 flex items-center justify-center p-0 cursor-zoom-out animate-in fade-in duration-300" onClick={() => setFullViewImage(null)}>
+          <div className="relative w-full max-w-[90vw] md:max-w-[500px] h-[80vh] flex items-center justify-center z-10">
+             <img src={fullViewImage} className="max-w-full max-h-full object-contain shadow-2xl border border-white/10" alt="Preview" />
+          </div>
+          <button className="absolute top-6 right-6 z-20 p-4 text-white/70 hover:text-white"><X size={28} /></button>
+        </div>
+      )}
+
+      {showAdminLogin && (
+        <div className="fixed inset-0 z-[200] bg-black/98 flex items-center justify-center p-6 backdrop-blur-3xl">
+          <div className="w-full max-w-xs text-center space-y-6">
+            <div className="w-12 h-12 bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-900/40 shadow-[0_0_20px_rgba(153,27,27,0.3)]">
+              <Lock className="text-red-700" size={20} />
+            </div>
+            <h2 className="text-xs font-black tracking-[0.4em] uppercase text-white">Identity Verification</h2>
+            <input 
+              type="password" 
+              className="w-full bg-white/5 border border-white/10 px-4 py-3 text-center outline-none focus:border-red-800 text-sm tracking-widest text-white shadow-inner"
+              placeholder="ENTER PASSKEY..."
+              autoFocus
+              value={passkey}
+              onChange={(e) => setPasskey(e.target.value)}
+              onKeyDown={(e) => {
+                if(e.key === 'Enter' && passkey === 'سبايسي داعس الكل') {
+                  setIsAdmin(true);
+                  setShowAdminLogin(false);
+                  setPasskey('');
+                }
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {isAdding && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 backdrop-blur-lg bg-black/90">
+          <div className="bg-[#0a0000] border border-red-900/30 w-full max-w-sm overflow-hidden shadow-2xl">
+            <div className="p-5 border-b border-white/5 flex justify-between items-center bg-red-950/10">
+              <h2 className="text-[10px] font-black tracking-[0.3em] text-red-700 uppercase">Designer Config</h2>
+              <button onClick={() => setIsAdding(false)} className="text-zinc-600 hover:text-white"><X size={18}/></button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              <div className="space-y-1">
+                <label className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Full Name</label>
+                <input required className="w-full bg-white/5 border border-white/10 px-4 py-3 focus:border-red-800 outline-none text-xs text-white uppercase tracking-widest" placeholder="NAME..." value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+              </div>
+              
+              <div className="space-y-4">
+                <label className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Portfolio Images</label>
+                <div className="relative group">
+                  <input type="file" multiple accept="image/*" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                  <div className="w-full py-8 border-2 border-dashed border-white/10 rounded-sm flex flex-col items-center justify-center gap-3 bg-white/5 group-hover:bg-red-950/10 transition-all">
+                    <Upload className="text-zinc-600 group-hover:text-red-600" size={24} />
+                    <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Add Works</span>
+                  </div>
+                </div>
+
+                {formData.images.length > 0 && (
+                  <div className="grid grid-cols-4 gap-2 max-h-32 overflow-y-auto pr-2 no-scrollbar">
+                    {formData.images.map((img, i) => (
+                      <div key={i} className="relative aspect-square">
+                        <img src={img} className="w-full h-full object-cover border border-white/10" alt="Preview" />
+                        <button type="button" onClick={() => setFormData({...formData, images: formData.images.filter((_, idx) => idx !== i)})} className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full p-0.5"><X size={10} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button type="submit" className="w-full py-4 bg-red-800 hover:bg-red-700 text-white font-black uppercase tracking-[0.3em] text-[9px] transition-all">
+                {editingId ? 'UPDATE DESIGNER' : 'SAVE TO DATABASE'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <footer className="py-16 text-center border-t border-white/5 bg-black/40 relative z-10">
+        <p className="text-[8px] font-black uppercase tracking-[1.2em] text-zinc-700 italic">SWI SPICY • V14.0</p>
+      </footer>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@1,6..96,900&family=Inter:wght@400;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #050000; color: white; }
+        h2 { font-family: 'Bodoni Moda', serif; font-style: italic; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes float { 0% { transform: translate(0, 0); } 50% { transform: translate(-10%, -15%) scale(1.1); } 100% { transform: translate(0, 0); } }
+        .animate-float { animation: float 25s ease-in-out infinite; }
+      `}} />
+    </div>
+  );
+};
+
+export default App;
+
+```
